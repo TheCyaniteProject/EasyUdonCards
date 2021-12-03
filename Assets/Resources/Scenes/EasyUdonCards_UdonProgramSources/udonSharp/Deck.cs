@@ -8,143 +8,124 @@ using VRC.Udon.Common;
 
 public class Deck : UdonSharpBehaviour
 {
-    public UdonBehaviour deckController;
-    public float spreadDistance = 0.006f;
+    public DeckHandler deckHandler;
     public GameObject deck;
     public Transform topCard;
     public Transform bottomCard;
     public Transform parent;
 
-    float maxCardDistance;
-    Transform activeDecks;
-    Transform inactiveDecks;
-    Transform looseCards;
-
+    [UdonSynced]
     bool isHolding = false;
+    [UdonSynced]
     bool isShowing = false;
-
-    private void Start()
-    {
-        maxCardDistance = (float)deckController.GetProgramVariable("maxCardDistance");
-        activeDecks = (Transform)deckController.GetProgramVariable("activeDecks");
-        inactiveDecks = (Transform)deckController.GetProgramVariable("inactiveDecks");
-        looseCards = (Transform)deckController.GetProgramVariable("looseCards");
-    }
 
     private void Update()
     {
-
-        if (parent.childCount <= 1)
+        if (transform.parent.name.ToLower() == "activedecks")
         {
-            parent.GetChild(0).gameObject.SetActive(true);
-            parent.GetChild(0).SetParent(looseCards);
-            transform.SetParent(inactiveDecks);
-
-        }
-        else if (parent.childCount > 1)
-        {
-            transform.SetParent(activeDecks);
-
-            Vector3 euler = transform.eulerAngles;
-
-            Vector3 heading = (transform.position + new Vector3(0, 20, 0)) - transform.position;
-
-            float dot = Vector3.Dot(heading, transform.up);
-
-            if (dot > 17f) // if deck is laying face down
+            if (parent.childCount <= 1) // if we have 1 or no cards, 
             {
-                int card = Random.Range(0, parent.childCount - 1);
-
-                foreach (Transform child in parent)
+                if (parent.childCount == 1) // if we have a card
                 {
-                    child.gameObject.SetActive(false);
+                    parent.GetChild(0).gameObject.SetActive(true); // show card before we hide deck
+                    deckHandler.SetParent(parent.GetChild(0).gameObject, 2); // if we only have one card, set card as looseCard
                 }
+                deckHandler.SetParent(gameObject, 1); // set as inactiveDeck
 
-                parent.gameObject.SetActive(true);
-                deck.SetActive(true);
-
-                parent.GetChild(card).position = topCard.position;
-                parent.GetChild(card).rotation = topCard.rotation;
-                parent.GetChild(card).gameObject.SetActive(true);
             }
-            else if (dot < -17f) // if deck is laying face up
+            else if (parent.childCount > 1) // if we have cards
             {
-                int card = parent.childCount - 1;
 
-                foreach (Transform child in parent)
+                Vector3 euler = transform.eulerAngles;
+
+                Vector3 heading = (transform.position + new Vector3(0, 20, 0)) - transform.position;
+
+                float dot = Vector3.Dot(heading, transform.up);
+
+                if (dot > 17f) // if deck is laying face down
                 {
-                    child.gameObject.SetActive(false);
-                }
+                    int card = Random.Range(0, parent.childCount - 1);
 
-                parent.gameObject.SetActive(true);
-                deck.SetActive(true);
-
-                parent.GetChild(card).position = bottomCard.position;
-                parent.GetChild(card).rotation = bottomCard.rotation;
-                parent.GetChild(card).gameObject.SetActive(true);
-            }
-            else
-            {
-                deck.SetActive(!isShowing);
-                parent.gameObject.SetActive(isShowing);
-
-                float position = (spreadDistance * ((parent.childCount > 12) ? 12 : parent.childCount)) / 2;
-                float rotation = -3;
-
-                int i = 0;
-                foreach (Transform child in parent)
-                {
-                    if (i >= 12)
+                    foreach (Transform child in parent)
                     {
                         child.gameObject.SetActive(false);
                     }
-                    else
+
+                    parent.gameObject.SetActive(true); // card container
+                    deck.SetActive(true); // visual deck
+
+                    parent.GetChild(card).position = topCard.position;
+                    parent.GetChild(card).rotation = topCard.rotation;
+                    parent.GetChild(card).gameObject.SetActive(true);
+                }
+                else if (dot < -17f) // if deck is laying face up
+                {
+                    int card = parent.childCount - 1;
+
+                    foreach (Transform child in parent)
                     {
-                        child.gameObject.SetActive(true);
-                        child.localPosition = new Vector3(position - (spreadDistance * i), 0, 0);
-                        child.localEulerAngles = new Vector3(0, 0, rotation);
+                        child.gameObject.SetActive(false);
                     }
 
-                    i++;
+                    parent.gameObject.SetActive(true); // card container
+                    deck.SetActive(true); // visual deck
+
+                    parent.GetChild(card).position = bottomCard.position;
+                    parent.GetChild(card).rotation = bottomCard.rotation;
+                    parent.GetChild(card).gameObject.SetActive(true);
+                }
+                else
+                {
+                    parent.gameObject.SetActive(isShowing); // card container
+                    deck.SetActive(!isShowing); // visual deck
+
+                    float position = (deckHandler.spreadDistance * ((parent.childCount > 12) ? 12 : parent.childCount)) / 2;
+                    float rotation = -3;
+
+                    int i = 0;
+                    foreach (Transform child in parent)
+                    {
+                        if (i >= 12)
+                        {
+                            child.gameObject.SetActive(false);
+                        }
+                        else
+                        {
+                            child.gameObject.SetActive(true);
+                            child.localPosition = new Vector3(position - (deckHandler.spreadDistance * i), 0, 0);
+                            child.localEulerAngles = new Vector3(0, 0, rotation);
+                        }
+
+                        i++;
+                    }
                 }
             }
+        }
+        else if (parent.childCount > 1)
+        {
+            deckHandler.SetParent(gameObject, 0); // set as activeDeck
         }
     }
 
     public override void OnPickup()
     {
         isHolding = true;
+        Debug.Log($"[EasyUdonCards] : Deck:{gameObject.name}, parent:{transform.parent.name}, children:{parent.childCount}");
     }
     public override void OnDrop()
     {
         isHolding = false;
 
-        GameObject closest = GetClosest();
+        int newParent = GetClosest();
 
-        if (closest && Vector3.Distance(transform.position, closest.transform.position) <= maxCardDistance)
+        if (newParent > -1)
         {
-            Transform newParent = null;
-
-            foreach (Transform child in closest.transform)
-            {
-                if (child.name.ToLower() == "parent")
-                {
-                    newParent = child;
-                    break;
-                }
-            }
-            Transform[] children = new Transform[parent.childCount];
-            int i = 0;
+            Debug.Log($"[EasyUdonCards] : Deck dropped on deck");
             foreach (Transform card in parent)
             {
-                children[i] = card;
-                i++;
+                deckHandler.SetParent(card.gameObject, newParent);
             }
-            foreach (Transform card in children)
-            {
-                card.SetParent(newParent);
-            }
-            transform.SetParent(inactiveDecks);
+            deckHandler.SetParent(gameObject, 1);
         }
     }
 
@@ -153,28 +134,36 @@ public class Deck : UdonSharpBehaviour
         isShowing = (isHolding && value);
     }
 
-    private GameObject GetClosest()
+    private int GetClosest()
     {
         GameObject closest = null;
 
-        if (activeDecks)
+        foreach (Transform child in deckHandler.parents[0])
         {
-            foreach (Transform child in activeDecks)
+            if (child != transform)
             {
-                if (child != transform)
+                if (!closest)
                 {
-                    if (!closest)
-                    {
-                        closest = child.gameObject;
-                    }
-                    else if (Vector3.Distance(transform.position, child.position) < Vector3.Distance(transform.position, closest.transform.position))
-                    {
-                        closest = child.gameObject;
-                    }
+                    closest = child.gameObject;
+                }
+                else if (Vector3.Distance(transform.position, child.position) < Vector3.Distance(transform.position, closest.transform.position))
+                {
+                    closest = child.gameObject;
                 }
             }
         }
 
-        return closest;
+        int i = 0;
+        if (closest != null)
+        {
+            foreach (Transform parent in deckHandler.parents)
+            {
+                if (parent.name == closest.name && Vector3.Distance(transform.position, closest.transform.position) <= deckHandler.maxCardDistance)
+                    return i;
+            }
+            i++;
+        }
+
+        return -1;
     }
 }

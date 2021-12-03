@@ -7,71 +7,55 @@ using VRC.Udon;
 
 public class Card : UdonSharpBehaviour
 {
-    public UdonBehaviour deckController;
-
-    float maxCardDistance;
-    Transform activeDecks;
-    Transform inactiveDecks;
-    Transform looseCards;
-
-    private void Start()
-    {
-        maxCardDistance = (float)deckController.GetProgramVariable("maxCardDistance");
-        activeDecks = (Transform)deckController.GetProgramVariable("activeDecks");
-        inactiveDecks = (Transform)deckController.GetProgramVariable("inactiveDecks");
-        looseCards = (Transform)deckController.GetProgramVariable("looseCards");
-    }
+    public DeckHandler deckHandler;
 
     public override void OnPickup()
     {
-        transform.SetParent(looseCards);
-        gameObject.SetActive(true);
+        deckHandler.SetParent(gameObject, 2);
     }
 
 
     public override void OnDrop()
     {
-        gameObject.SetActive(true);
         GameObject closest = GetClosest();
 
-        if (closest && Vector3.Distance(transform.position, closest.transform.position) <= maxCardDistance)
+        float distance = Vector3.Distance(transform.position, closest.transform.position);
+
+        if (closest && distance <= deckHandler.maxCardDistance)
         {
-            Transform parent = null;
-            if (!isCard)
+            Debug.Log($"[EasyUdonCards] : Card dropped on:{closest.name}, isCard:{isCard}");
+
+            if (!isCard) // if we're dropping onto a deck
             {
-                foreach (Transform child in closest.transform)
+                for (int i = 0; i < deckHandler.parents.Length; i++)
                 {
-                    if (child.name.ToLower() == "parent")
+                    if (deckHandler.parents[i].name == closest.name)
                     {
-                        parent = child;
+                        deckHandler.SetParent(gameObject, i);
                         break;
                     }
+                    i++;
                 }
             }
-            else
+            else // if we're dropping onto a card
             {
-                if (inactiveDecks.childCount > 0)
+                if (deckHandler.parents[1].childCount > 0) // check if there's an available inactiveDeck
                 {
-                    Transform deck = inactiveDecks.GetChild(0);
-                    deck.position = closest.transform.position;
-                    deck.rotation = closest.transform.rotation;
-                    foreach (Transform child in deck)
+                    Transform deck = deckHandler.parents[1].GetChild(0); // get inactiveDeck
+                    deck.position = closest.transform.position; // move deck to card
+                    deck.rotation = closest.transform.rotation; // move deck to card
+
+                    for (int i = 0; i < deckHandler.parents.Length; i++) // search for deck in list of parents
                     {
-                        if (child.name.ToLower() == "parent")
+                        if (deckHandler.parents[i].name == deck.name) // check if current parent is equal to deck
                         {
-                            parent = child;
-                            closest.transform.SetParent(parent);
+                            deckHandler.SetParent(gameObject, i); // move this card to deck
+                            deckHandler.SetParent(closest, i); // move other card to deck
+                            deckHandler.SetParent(deck.gameObject, 0); // move deck to aciveDecks
                             break;
                         }
                     }
-                    deck.SetParent(activeDecks);
                 }
-            }
-
-            if (parent)
-            {
-                transform.SetParent(parent);
-                transform.localPosition = Vector3.zero;
             }
         }
     }
@@ -81,39 +65,33 @@ public class Card : UdonSharpBehaviour
     {
         GameObject closest = null;
 
-        if (activeDecks)
+        foreach (Transform deck in deckHandler.parents[0]) // for each deck in activeDecks
         {
-            foreach (Transform child in activeDecks)
+            if (!closest)
             {
-                if (!closest)
-                {
-                    closest = child.gameObject;
-                    isCard = false;
-                }
-                else if (Vector3.Distance(transform.position, child.position) < Vector3.Distance(transform.position, closest.transform.position))
-                {
-                    closest = child.gameObject;
-                    isCard = false;
-                }
+                closest = deck.gameObject;
+                isCard = false;
+            }
+            else if (Vector3.Distance(transform.position, deck.position) < Vector3.Distance(transform.position, closest.transform.position))
+            {
+                closest = deck.gameObject;
+                isCard = false;
             }
         }
 
-        if (looseCards)
+        foreach (Transform card in deckHandler.parents[2]) // for each card in looseCards
         {
-            foreach (Transform child in looseCards)
+            if (card != transform) // make sure we didn't find ourself
             {
-                if (child != transform)
+                if (!closest)
                 {
-                    if (!closest)
-                    {
-                        closest = child.gameObject;
-                        isCard = true;
-                    }
-                    else if (Vector3.Distance(transform.position, child.position) < Vector3.Distance(transform.position, closest.transform.position))
-                    {
-                        closest = child.gameObject;
-                        isCard = true;
-                    }
+                    closest = card.gameObject;
+                    isCard = true;
+                }
+                else if (Vector3.Distance(transform.position, card.position) < Vector3.Distance(transform.position, closest.transform.position))
+                {
+                    closest = card.gameObject;
+                    isCard = true;
                 }
             }
         }
