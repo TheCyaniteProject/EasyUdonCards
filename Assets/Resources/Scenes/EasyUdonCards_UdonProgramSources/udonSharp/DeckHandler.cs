@@ -57,8 +57,19 @@ public class DeckHandler : UdonSharpBehaviour
             hasParent = false;
         }
 
-        networkIDs = parentIDs;
-        _networkIDs = parentIDs;
+        if (networkIDs == null || networkIDs.Length != parentIDs.Length)
+            networkIDs = new int[parentIDs.Length];
+        for (int i = 0; i < networkIDs.Length; i++)
+        {
+            networkIDs[i] = parentIDs[i];
+        }
+
+        if (_networkIDs == null || _networkIDs.Length != parentIDs.Length)
+            _networkIDs = new int[parentIDs.Length];
+        for (int i = 0; i < _networkIDs.Length; i++)
+        {
+            _networkIDs[i] = parentIDs[i];
+        }
     }
 
     public void SetParent(GameObject obj, int value) // -1 = null parent, 0 = activeDecks, 1 = inactiveDecks, 2 = looseCards, anything else is a deck
@@ -104,7 +115,15 @@ public class DeckHandler : UdonSharpBehaviour
         {
             if (networkIDs[i] != _networkIDs[i]) return true;
         }
-        return CheckLocal();
+
+        if (networkIDs.Length != parentIDs.Length) return true;
+
+        for (int i = 0; i < networkIDs.Length; i++)
+        {
+            if (networkIDs[i] != parentIDs[i]) return true;
+        }
+
+        return false;
     }
     void FixNetwork()
     {
@@ -118,17 +137,12 @@ public class DeckHandler : UdonSharpBehaviour
         }
     }
 
-    public override void OnDeserialization()
-    {
-        Debug.Log($"[EasyUdonCards] : Deserializing..");
-    }
-
     bool needNetworkUpdate = false;
     private void Update()
     {
         if (CheckLocal())
         {
-            Debug.Log($"[EasyUdonCards] : Updating local parents..");
+            //Debug.Log($"[EasyUdonCards] : Updating local parents..");
             for (int i = 0; i < objects.Length; i++) // loop through all the objects
             {
                 if (parentIDs[i] != -1) // if we have a parent - parents are synced using int-ids for performance
@@ -148,13 +162,18 @@ public class DeckHandler : UdonSharpBehaviour
                             }
                         }
                     }
-                    
+
+                    if (objects[i].name.ToLower().Contains("deck") && id == 1) // if we're a deck in inactiveDecks we need to reset our position
+                    {
+                        objects[i].transform.position = parents[id].transform.position;
+                    }
+
                     if (!isDeckWithParent && objects[i].transform.parent.name != parents[id].name)// if deck parent hasn't been set, and we're not where we're supposed to be
                     {
                         objects[i].transform.SetParent(parents[id]); // set parent
-                        objects[i].SetActive(true); // reset active state
+                        objects[i].SetActive(true); // reset active state (mainly for cards that came from decks)
                     }
-                    Debug.Log($"[EasyUdonCards] : Parent:{objects[i].name}, ID:{parentIDs[i]}, isDeckWithParent:{isDeckWithParent}");
+                    //Debug.Log($"[EasyUdonCards] : Parent:{objects[i].name}, ID:{parentIDs[i]}, isDeckWithParent:{isDeckWithParent}");
                 }
             }
             FixLocal();
@@ -162,6 +181,7 @@ public class DeckHandler : UdonSharpBehaviour
 
         if (CheckNetwork())
         {
+            Debug.Log($"[EasyUdonCards] : Updating network..");
             needNetworkUpdate = false; // if something has changed locally and we need to tell the network
 
             for (int i = 0; i < networkIDs.Length; i++) // loop through all networked objects
@@ -176,13 +196,13 @@ public class DeckHandler : UdonSharpBehaviour
                     needNetworkUpdate = true;
                 }
             }
+            FixNetwork();
             if (needNetworkUpdate)
             {
                 Debug.Log($"[EasyUdonCards] : Requesting Serialization..");
                 Networking.SetOwner(Networking.LocalPlayer, gameObject);
                 RequestSerialization();
                 needNetworkUpdate = false;
-                FixNetwork();
             }
         }
     }
