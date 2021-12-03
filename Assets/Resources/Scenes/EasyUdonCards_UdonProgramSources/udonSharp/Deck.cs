@@ -101,7 +101,8 @@ public class Deck : UdonSharpBehaviour
                 }
             }
         }
-        else if (parent.childCount > 1)
+        
+        if (parent.childCount > 1)
         {
             deckHandler.SetParent(gameObject, 0); // set as activeDeck
         }
@@ -116,11 +117,13 @@ public class Deck : UdonSharpBehaviour
     {
         isHolding = false;
 
+        return;
+
         int newParent = GetClosest();
 
         if (newParent > -1)
         {
-            Debug.Log($"[EasyUdonCards] : Deck dropped on deck");
+            Debug.Log($"[EasyUdonCards] : Deck {gameObject.name} dropped on {deckHandler.parents[newParent]}");
             foreach (Transform card in parent)
             {
                 deckHandler.SetParent(card.gameObject, newParent);
@@ -140,7 +143,7 @@ public class Deck : UdonSharpBehaviour
 
         foreach (Transform child in deckHandler.parents[0])
         {
-            if (child != transform)
+            if (child.name != gameObject.name)
             {
                 if (!closest)
                 {
@@ -152,10 +155,10 @@ public class Deck : UdonSharpBehaviour
                 }
             }
         }
-
-        int i = 0;
+        
         if (closest != null)
         {
+            int i = 0;
             foreach (Transform parent in deckHandler.parents)
             {
                 if (parent.name == closest.name && Vector3.Distance(transform.position, closest.transform.position) <= deckHandler.maxCardDistance)
