@@ -27,6 +27,7 @@ public class Deck : UdonSharpBehaviour
             {
                 if (parent.childCount == 1) // if we have a card
                 {
+                    Networking.SetOwner(Networking.LocalPlayer, parent.GetChild(0).gameObject);
                     parent.GetChild(0).gameObject.SetActive(true); // show card before we hide deck
                     deckHandler.SetParent(parent.GetChild(0).gameObject, 2); // if we only have one card, set card as looseCard
                 }
@@ -111,7 +112,12 @@ public class Deck : UdonSharpBehaviour
     public override void OnPickup()
     {
         isHolding = true;
-        Debug.Log($"[EasyUdonCards] : Deck:{gameObject.name}, parent:{transform.parent.name}, children:{parent.childCount}");
+        //Debug.Log($"[EasyUdonCards] : Deck:{gameObject.name}, parent:{transform.parent.name}, children:{parent.childCount}");
+
+        foreach (Transform card in parent) // force owner
+        {
+            Networking.SetOwner(Networking.LocalPlayer, card.gameObject);
+        }
     }
     public override void OnDrop()
     {

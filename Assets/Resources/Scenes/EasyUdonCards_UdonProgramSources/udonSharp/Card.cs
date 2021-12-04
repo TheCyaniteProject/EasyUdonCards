@@ -9,7 +9,7 @@ public class Card : UdonSharpBehaviour
 {
     public DeckHandler deckHandler;
 
-    public override void OnPickup()
+    public override void OnPickup() // on pickup move card to looseCards parent
     {
         deckHandler.SetParent(gameObject, 2);
     }
@@ -31,6 +31,7 @@ public class Card : UdonSharpBehaviour
                 {
                     if (deckHandler.parents[i].name == closest.name)
                     {
+                        Networking.SetOwner(Networking.LocalPlayer, closest.gameObject);
                         deckHandler.SetParent(gameObject, i);
                         break;
                     }
@@ -42,13 +43,15 @@ public class Card : UdonSharpBehaviour
                 if (deckHandler.parents[1].childCount > 0) // check if there's an available inactiveDeck
                 {
                     Transform deck = deckHandler.parents[1].GetChild(0); // get inactiveDeck
+                    Networking.SetOwner(Networking.LocalPlayer, deck.gameObject);
                     deck.position = closest.transform.position; // move deck to card
                     deck.rotation = closest.transform.rotation; // move deck to card
 
-                    for (int i = 0; i < deckHandler.parents.Length; i++) // search for deck in list of parents
+                    for (int i = 0; i < deckHandler.parents.Length; i++) // search for deck in list of parents (so we can get it's ID)
                     {
                         if (deckHandler.parents[i].name == deck.name) // check if current parent is equal to deck
                         {
+                            Networking.SetOwner(Networking.LocalPlayer, closest);
                             deckHandler.SetParent(gameObject, i); // move this card to deck
                             deckHandler.SetParent(closest, i); // move other card to deck
                             deckHandler.SetParent(deck.gameObject, 0); // move deck to aciveDecks
