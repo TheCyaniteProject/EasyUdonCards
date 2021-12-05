@@ -31,11 +31,11 @@ public class Card : UdonSharpBehaviour
                 {
                     if (deckHandler.parents[i].name == closest.name)
                     {
+                        Debug.Log($"[EasyUdonCards] : {gameObject.name} dropped on {i}");
                         Networking.SetOwner(Networking.LocalPlayer, closest.gameObject);
                         deckHandler.SetParent(gameObject, i);
                         break;
                     }
-                    i++;
                 }
             }
             else // if we're dropping onto a card
