@@ -85,6 +85,24 @@ public class DeckHandler : UdonSharpBehaviour
         }
     }
 
+    public int GetID(GameObject obj)
+    {
+        for (int i = 0; i < objects.Length; i++)
+        {
+            if (objects[i].name == obj.name)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public Transform GetParent(GameObject obj)
+    {
+        return parents[parentIDs[GetID(obj)]];
+    }
+
     bool CheckLocal()
     {
         if (parentIDs.Length != _parentIDs.Length) return true;

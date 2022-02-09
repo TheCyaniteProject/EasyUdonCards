@@ -15,9 +15,9 @@ public class Deck : UdonSharpBehaviour
     public Transform parent;
 
     [UdonSynced]
-    bool isHolding = false;
+    public bool isHolding = false;
     [UdonSynced]
-    bool isShowing = false;
+    public bool isShowing = false;
 
     private void Update()
     {
@@ -29,8 +29,10 @@ public class Deck : UdonSharpBehaviour
                 {
                     Networking.SetOwner(Networking.LocalPlayer, parent.GetChild(0).gameObject);
                     parent.GetChild(0).gameObject.SetActive(true); // show card before we hide deck
+                    parent.GetChild(0).SetParent(deckHandler.parents[2]); // force remove card from deck (replace with parsing cards before decks)
                     deckHandler.SetParent(parent.GetChild(0).gameObject, 2); // if we only have one card, set card as looseCard
                 }
+                gameObject.transform.position = deckHandler.parents[1].position; // force position
                 deckHandler.SetParent(gameObject, 1); // set as inactiveDeck
 
             }

@@ -11,6 +11,18 @@ public class Card : UdonSharpBehaviour
 
     public override void OnPickup() // on pickup move card to looseCards parent
     {
+
+        if (deckHandler.GetID(gameObject) != 2)
+        {
+            if (transform.parent.name.ToLower() == "parent")
+            {
+                Networking.SetOwner(Networking.LocalPlayer, transform.parent.parent.gameObject);
+            }
+            else
+            {
+                Networking.SetOwner(Networking.LocalPlayer, transform.parent.gameObject);
+            }
+        }
         deckHandler.SetParent(gameObject, 2);
     }
 
@@ -25,8 +37,13 @@ public class Card : UdonSharpBehaviour
         {
             Debug.Log($"[EasyUdonCards] : Card dropped on:{closest.name}, isCard:{isCard}");
 
-            if (!isCard) // if we're dropping onto a deck
+            if (!isCard) // if we're dropping onto a deck 
             {
+                if (!Networking.IsOwner(closest) && (bool)((UdonBehaviour)closest.GetComponent(typeof(UdonBehaviour))).GetProgramVariable("isHolding"))
+                {
+                    Debug.Log($"[EasyUdonCards] : Deck is held by someone else");
+                    return;
+                }
                 for (int i = 0; i < deckHandler.parents.Length; i++)
                 {
                     if (deckHandler.parents[i].name == closest.name)
